@@ -1,0 +1,57 @@
+{
+  "name": "lucid-keeperhub-settlement",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "install:ci": "bash scripts/install-ci.sh",
+    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
+    "build": "bash scripts/build-verified.sh",
+    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
+    "agent:dev": "tsx watch src/server.ts",
+    "agent:start": "tsx src/server.ts",
+    "demo:live": "node --env-file-if-exists=.env --import tsx scripts/live-demo.ts",
+    "test:unit": "node --import tsx --test tests/unit/*.test.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "@hono/node-server": "1.19.9",
+    "@lucid-agents/a2a": "2.0.0",
+    "@lucid-agents/core": "5.0.0",
+    "@lucid-agents/hono": "1.0.2",
+    "@lucid-agents/http": "4.0.0",
+    "@lucid-agents/payments": "5.0.0",
+    "@lucid-agents/types": "3.0.0",
+    "hono": "4.10.1",
+    "lucide-react": "^1.31.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@cloudflare/workers-types": "4.20260702.1",
+    "@tailwindcss/postcss": "4.2.1",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.2.6",
+    "react-server-dom-webpack": "19.2.6",
+    "tailwindcss": "4.2.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vinext": "0.0.50",
+    "vite": "8.0.13",
+    "wrangler": "4.92.0"
+  },
+  "type": "module"
+}
