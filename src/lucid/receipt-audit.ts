@@ -8,7 +8,9 @@ export const receiptAuditInputSchema = z.object({
     .min(20)
     .max(128)
     .regex(/^[a-zA-Z0-9][a-zA-Z0-9._:-]+$/),
-  workerAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  workerAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).refine(
+    (value) => !/^0x0{40}$/i.test(value), "Worker must not be the zero address",
+  ),
   transactionHashes: z
     .array(transactionHash)
     .min(1)
