@@ -7,9 +7,8 @@ const originalFetch = globalThis.fetch;
 const facilitatorBaseUrl = config.facilitatorUrl.replace(/\/$/u, "");
 
 // Lucid intentionally returns a generic 503 when a facilitator rejects or
-// cannot inspect a payment. Keep the request secret, but print the upstream
-// response so testnet operators can distinguish balance, signature, and
-// provider failures.
+// cannot inspect a payment. Log only a bounded reason code: upstream error
+// messages can echo signed payment authorizations and must remain private.
 globalThis.fetch = async (input, init) => {
   const requestUrl =
     typeof input === "string"
@@ -29,7 +28,9 @@ globalThis.fetch = async (input, init) => {
     if (!response.ok || body?.isValid === false || body?.success === false) {
       console.error(
         `[x402:facilitator] ${response.status} ${new URL(requestUrl).pathname}`,
-        body ?? { error: "non-JSON response" },
+        { isValid: body?.isValid, success: body?.success,
+          reason: typeof body?.invalidReason === "string" && /^[a-z0-9_]{1,120}$/i.test(body.invalidReason)
+            ? body.invalidReason : "upstream_failure" },
       );
     }
   }
