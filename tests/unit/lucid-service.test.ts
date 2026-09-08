@@ -92,9 +92,11 @@ test("real Lucid paid tasks payout and refund only after KeeperHub receipt verif
       });
     }
     if (url.hostname === "facilitator.test" && url.pathname.endsWith("/verify")) {
+      assert.equal(request.headers.get("Authorization"), "Bearer dreams_test_token");
       return Response.json({ isValid: true, payer: PAYER });
     }
     if (url.hostname === "facilitator.test" && url.pathname.endsWith("/settle")) {
+      assert.equal(request.headers.get("Authorization"), "Bearer dreams_test_token");
       paymentSettlementCount += 1;
       return Response.json({
         success: true,
@@ -193,6 +195,7 @@ test("real Lucid paid tasks payout and refund only after KeeperHub receipt verif
     baseSepoliaRpcUrl: "https://base-sepolia-rpc.test",
     baseSepoliaUsdcAddress: USDC,
     facilitatorUrl: "https://facilitator.test",
+    facilitatorAuth: "dreams_test_token",
     keeperHubApiBaseUrl: "https://keeperhub.test",
     keeperHubApiKey: "kh_integration_test",
     settlementAddress: SETTLEMENT,
