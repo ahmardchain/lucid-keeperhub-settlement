@@ -206,6 +206,20 @@ test("real Lucid paid tasks payout and refund only after KeeperHub receipt verif
   let service: Awaited<ReturnType<typeof createSettlementAgentService>> | undefined;
   try {
     service = await createSettlementAgentService(config);
+    for (const invalidInput of [
+      { operationId: "bad-input", workerAddress: `0x${"0".repeat(40)}` },
+      { operationId: "mismatched-key", workerAddress: WORKER },
+    ]) {
+      const response = await service.app.fetch(new Request("http://localhost/api/agent/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": "bad-input" },
+        body: JSON.stringify({ skillId: "audit_receipts", message: { role: "user", content: {
+          text: JSON.stringify({ ...invalidInput, transactionHashes: [AUDITED_TX] }),
+        } } }),
+      }));
+      assert.equal(response.status, 400);
+      assert.equal(paymentSettlementCount, 0);
+    }
     const submit = async (operationId: string, transactionHash: string) => {
       const body = JSON.stringify({
         skillId: "audit_receipts",
