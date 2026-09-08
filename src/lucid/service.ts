@@ -88,6 +88,7 @@ export async function createSettlementAgentService(config: ServiceConfig) {
           payTo: config.settlementAddress,
           network: NETWORK,
           facilitatorUrl: config.facilitatorUrl,
+          facilitatorAuth: config.facilitatorAuth,
           storage: { type: "in-memory" },
         },
       }),
