@@ -98,6 +98,23 @@ test("valid completed task pays the worker exactly once", async () => {
   assert.equal(executor.executionRequests.length, 1);
 });
 
+for (const status of ["failed", "cancelled"] as const) {
+  test(`${status} tasks refund the verified payer`, async () => {
+    const { coordinator, executor, evidence } = await fixture();
+    const result = await coordinator.settle({ ...evidence, status, output: undefined });
+    assert.equal(result.state, "refunded");
+    assert.equal(executor.executionRequests[0]?.recipientAddress, PAYER);
+  });
+}
+
+test("reverting simulation never broadcasts", async () => {
+  const executor = new FakeKeeperHubExecutor({ simulation: "revert", simulatedFromAddress: SETTLEMENT });
+  const { coordinator, evidence } = await fixture(executor);
+  const result = await coordinator.settle(evidence);
+  assert.equal(result.state, "blocked");
+  assert.equal(executor.executionRequests.length, 0);
+});
+
 test("a valid audit with a missing receipt refunds the verified payer", async () => {
   const { coordinator, executor, evidence } = await fixture();
   evidence.output = {
