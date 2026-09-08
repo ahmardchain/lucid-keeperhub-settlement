@@ -38,13 +38,20 @@ export function serviceConfigFromEnv(
     throw new Error("TASK_PRICE_ATOMIC must be a positive atomic USDC amount");
   }
 
+  const asset = normalizeAddress(
+    env.BASE_SEPOLIA_USDC_ADDRESS ?? BASE_SEPOLIA_USDC,
+  );
+  if (asset !== BASE_SEPOLIA_USDC) {
+    throw new Error(
+      `BASE_SEPOLIA_USDC_ADDRESS must be the official Base Sepolia USDC deployment: ${BASE_SEPOLIA_USDC}`,
+    );
+  }
+
   return {
     port: positiveInteger(env.PORT, 8788),
     databasePath: env.DATABASE_PATH?.trim() || ".data/settlement.db",
     baseSepoliaRpcUrl: required(env, "BASE_SEPOLIA_RPC_URL"),
-    baseSepoliaUsdcAddress: normalizeAddress(
-      env.BASE_SEPOLIA_USDC_ADDRESS ?? BASE_SEPOLIA_USDC,
-    ),
+    baseSepoliaUsdcAddress: asset,
     facilitatorUrl: required(env, "FACILITATOR_URL"),
     keeperHubApiBaseUrl:
       env.KEEPERHUB_API_BASE_URL?.trim() || "https://app.keeperhub.com",
