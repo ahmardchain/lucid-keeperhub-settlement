@@ -22,12 +22,17 @@ Set:
 
 - `PAYMENTS_RECEIVABLE_ADDRESS` to the KeeperHub organization wallet;
 - `KEEPERHUB_API_KEY` to an organization key with direct-write scope;
-- `FACILITATOR_URL` to the facilitator used by the Lucid x402 offer;
+- `FACILITATOR_URL` to `https://x402.org/facilitator`, the public x402
+  testnet facilitator for Base Sepolia;
 - `BASE_SEPOLIA_RPC_URL` to a Base Sepolia endpoint;
 - `BUYER_PRIVATE_KEY` to the funded demo payer key;
 - `WORKER_PAYOUT_ADDRESS` to the worker destination;
 - `DEMO_SUCCESS_TX_HASH` to an existing successful Base Sepolia transaction;
 - `DEMO_RUNS_PER_PATH` to `1` for rehearsal or `10` for final evidence.
+
+The public testnet facilitator does not require a token. If you deliberately
+choose an authenticated facilitator, set `PAYMENTS_FACILITATOR_AUTH` to its
+server-only bearer token.
 
 `PAYMENTS_RECEIVABLE_ADDRESS` must be able to send through the same KeeperHub organization addressed by the API key. A mismatch defeats the money path and should not be presented as an integration.
 
