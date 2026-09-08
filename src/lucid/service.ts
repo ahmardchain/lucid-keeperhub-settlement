@@ -5,7 +5,10 @@ import { http } from "@lucid-agents/http";
 import { payments } from "@lucid-agents/payments";
 import type { Hono } from "hono";
 import type { ServiceConfig } from "../config";
-import { KeeperHubHttpExecutor } from "../keeperhub/http-executor";
+import {
+  atomicToDecimal,
+  KeeperHubHttpExecutor,
+} from "../keeperhub/http-executor";
 import { SettlementCoordinator } from "../settlement/coordinator";
 import { SqliteSettlementStore } from "../settlement/sqlite-store";
 import { parsePaymentEvidence } from "../x402/payment-evidence";
@@ -102,10 +105,10 @@ export async function createSettlementAgentService(config: ServiceConfig) {
             network: NETWORK,
             payTo: config.settlementAddress,
             facilitatorUrl: config.facilitatorUrl,
-            price: {
-              amount: config.taskPriceAtomic,
-              asset: config.baseSepoliaUsdcAddress,
-            },
+            // A money string lets Lucid's x402 EVM server attach the default
+            // Base Sepolia USDC EIP-712 domain (name/version) required by
+            // current buyers. An explicit token amount loses that metadata.
+            price: `$${atomicToDecimal(config.taskPriceAtomic)}`,
           },
         ],
       },
