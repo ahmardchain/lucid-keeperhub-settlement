@@ -183,7 +183,18 @@ function mountSettlementCapture(
   app.use("/api/agent/tasks", async (context, next) => {
     if (context.req.method !== "POST") return next();
     const request = context.req.raw.clone();
-    const requestBodyPromise = request.json() as Promise<TaskCreationBody>;
+    let requestBody: TaskCreationBody;
+    try {
+      requestBody = await request.json() as TaskCreationBody;
+      if (requestBody.skillId === ENTRYPOINT) {
+        const input = receiptAuditInputSchema.parse(parseEntrypointInput(requestBody));
+        if (request.headers.get("Idempotency-Key")?.trim() !== input.operationId) {
+          return context.json({ error: "operationId must match Idempotency-Key" }, 400);
+        }
+      }
+    } catch {
+      return context.json({ error: "Invalid task input" }, 400);
+    }
     await next();
 
     const paymentResponseHeader =
@@ -192,10 +203,7 @@ function mountSettlementCapture(
     if (!context.res.ok || !paymentResponseHeader) return;
 
     try {
-      const [requestBody, responseBody] = await Promise.all([
-        requestBodyPromise,
-        context.res.clone().json() as Promise<TaskCreationResponse>,
-      ]);
+      const responseBody = await context.res.clone().json() as TaskCreationResponse;
       if (requestBody.skillId !== ENTRYPOINT || !responseBody.taskId) return;
       const input = receiptAuditInputSchema.parse(
         parseEntrypointInput(requestBody),
