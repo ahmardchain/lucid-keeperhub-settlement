@@ -76,7 +76,19 @@ test("does not present placeholder hashes as live evidence", async () => {
   );
   const bundle = JSON.parse(raw);
 
-  assert.equal(bundle.mode, "awaiting_live_run");
   assert.equal(bundle.network, "eip155:84532");
-  assert.deepEqual(bundle.operations, []);
+  if (bundle.mode === "awaiting_live_run") {
+    assert.deepEqual(bundle.operations, []);
+  } else {
+    assert.equal(bundle.mode, "base_sepolia_live");
+    assert.ok(bundle.operations.length > 0);
+    const ids = new Set();
+    for (const operation of bundle.operations) {
+      assert.equal(operation.receiptVerified, true);
+      assert.equal(operation.receiptStatus, "success");
+      assert.match(operation.settlementTransactionHash, /^0x[a-fA-F0-9]{64}$/);
+      assert.ok(!ids.has(operation.operationId));
+      ids.add(operation.operationId);
+    }
+  }
 });
