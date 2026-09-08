@@ -5,6 +5,7 @@ export function normalizeAddress(value: string): `0x${string}` {
   if (!ADDRESS_PATTERN.test(value)) {
     throw new Error("Expected a 20-byte EVM address");
   }
+  if (/^0x0{40}$/i.test(value)) throw new Error("Zero address is not a valid settlement participant");
   return value.toLowerCase() as `0x${string}`;
 }
 
