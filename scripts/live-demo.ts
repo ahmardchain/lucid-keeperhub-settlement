@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import {
   fetchAgentCard,
@@ -55,7 +55,7 @@ function assertHash(value: string, name: string): `0x${string}` {
 }
 
 function assertAddress(value: string, name: string): `0x${string}` {
-  if (!/^0x[a-fA-F0-9]{40}$/.test(value)) {
+  if (!/^0x[a-fA-F0-9]{40}$/.test(value) || /^0x0{40}$/i.test(value)) {
     throw new Error(`${name} must be a 20-byte EVM address`);
   }
   return value.toLowerCase() as `0x${string}`;
@@ -157,6 +157,29 @@ const paidFetch = createX402Fetch({
 });
 const card = await fetchAgentCard(agentUrl);
 const receipts: PublicReceiptOperation[] = [];
+const evidencePath = resolve("artifacts/receipts.json");
+try {
+  const previous = JSON.parse(await readFile(evidencePath, "utf8"));
+  if (previous.mode !== "base_sepolia_live" || previous.network !== "eip155:84532" || !Array.isArray(previous.operations)) {
+    throw new Error("Existing evidence bundle has an unexpected format; preserve and review it first");
+  }
+  receipts.push(...previous.operations);
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+}
+
+async function saveEvidence(): Promise<void> {
+  const bundle = {
+    schemaVersion: "1.0", mode: "base_sepolia_live", network: "eip155:84532",
+    generatedAt: new Date().toISOString(), operations: receipts,
+  };
+  for (const output of [evidencePath, resolve("public/evidence/receipts.json")]) {
+    await mkdir(dirname(output), { recursive: true });
+    const temporary = `${output}.${randomUUID()}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
+    await rename(temporary, output);
+  }
+}
 
 async function runCase(
   expectedDirection: "payout" | "refund",
@@ -190,6 +213,7 @@ async function runCase(
     );
   }
   receipts.push(publicReceipt(operation));
+  await saveEvidence();
   console.info(
     `[demo] ${expectedDirection} ${operation.operationId} -> ${operation.execution?.transactionHash}`,
   );
@@ -203,21 +227,7 @@ for (let index = 0; index < runsPerPath; index += 1) {
   await runCase("refund", definitelyMissingHash, index + 1);
 }
 
-const bundle = {
-  schemaVersion: "1.0",
-  mode: "base_sepolia_live",
-  network: "eip155:84532",
-  generatedAt: new Date().toISOString(),
-  operations: receipts,
-};
-const outputs = [
-  resolve("artifacts/receipts.json"),
-  resolve("public/evidence/receipts.json"),
-];
-for (const output of outputs) {
-  await mkdir(dirname(output), { recursive: true });
-  await writeFile(output, `${JSON.stringify(bundle, null, 2)}\n`, "utf8");
-}
+await saveEvidence();
 console.info(
   `[demo] wrote ${receipts.length} verified operations to artifacts/receipts.json`,
 );
