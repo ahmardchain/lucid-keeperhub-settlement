@@ -9,6 +9,7 @@ export interface ServiceConfig {
   baseSepoliaRpcUrl: string;
   baseSepoliaUsdcAddress: `0x${string}`;
   facilitatorUrl: string;
+  facilitatorAuth?: string;
   keeperHubApiBaseUrl: string;
   keeperHubApiKey: string;
   settlementAddress: `0x${string}`;
@@ -53,6 +54,10 @@ export function serviceConfigFromEnv(
     baseSepoliaRpcUrl: required(env, "BASE_SEPOLIA_RPC_URL"),
     baseSepoliaUsdcAddress: asset,
     facilitatorUrl: required(env, "FACILITATOR_URL"),
+    facilitatorAuth:
+      env.DREAMS_AUTH_TOKEN?.trim() ||
+      env.PAYMENTS_FACILITATOR_AUTH?.trim() ||
+      undefined,
     keeperHubApiBaseUrl:
       env.KEEPERHUB_API_BASE_URL?.trim() || "https://app.keeperhub.com",
     keeperHubApiKey: required(env, "KEEPERHUB_API_KEY"),
