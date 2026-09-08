@@ -12,8 +12,8 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
-    "agent:dev": "tsx watch src/server.ts",
-    "agent:start": "tsx src/server.ts",
+    "agent:dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
+    "agent:start": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "demo:live": "node --env-file-if-exists=.env --import tsx scripts/live-demo.ts",
     "test:unit": "node --import tsx --test tests/unit/*.test.ts"
   },
