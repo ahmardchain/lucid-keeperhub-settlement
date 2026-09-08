@@ -29,6 +29,10 @@ function paymentSignature(challengeResponse: Response, operationId: string): str
     resource: Record<string, unknown>;
     accepts: Array<Record<string, unknown>>;
   };
+  assert.deepEqual(challenge.accepts[0]?.extra, {
+    name: "USDC",
+    version: "2",
+  });
   return Buffer.from(
     JSON.stringify({
       x402Version: challenge.x402Version,
