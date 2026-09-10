@@ -37,7 +37,7 @@ test("renders the custody and post-fulfillment invariant", async () => {
   const { default: Home } = await vite.ssrLoadModule("/app/page.tsx");
   const html = renderToStaticMarkup(React.createElement(Home));
 
-  assert.match(html, /Pay after proof/);
+  assert.match(html, /Work first/);
   assert.match(html, /x402 sends USDC into a KeeperHub-controlled wallet/);
   assert.match(html, /The wallet is not called escrow/);
   assert.match(html, /KeeperHub is the sole post-task spender/);

@@ -1,209 +1,49 @@
-import {
-  ArrowRight,
-  Braces,
-  Check,
-  ExternalLink,
-  GitBranch,
-  LockKeyhole,
-  Radio,
-  RefreshCcw,
-  ShieldCheck,
-  TriangleAlert,
-} from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { PublicationMotion } from "@/components/publication-motion";
 import { EvidenceLedger } from "@/components/evidence-ledger";
 import { SettlementFlow } from "@/components/settlement-flow";
-
-const githubUrl = "https://github.com/ahmardchain/lucid-keeperhub-settlement";
+const github = "https://github.com/ahmardchain/lucid-keeperhub-settlement";
 
 export default function Home() {
-  return (
-    <main>
-      <header className="site-header">
-        <a className="brand" href="#top" aria-label="Settlement Recovery home">
-          <span className="brand-mark" aria-hidden="true"><span /><span /></span>
-          <span><strong>Settlement Recovery</strong><small>Lucid × KeeperHub</small></span>
-        </a>
-        <nav aria-label="Primary navigation">
-          <a href="#route">Money path</a>
-          <a href="#evidence">Evidence</a>
-          <a href="#recovery">Recovery</a>
-          <a className="header-github" href={githubUrl} target="_blank" rel="noreferrer">
-            <GitBranch aria-hidden="true" /><span>Source</span>
-          </a>
-        </nav>
-      </header>
-
-      <div id="top" className="hero-shell">
-        <section className="hero-copy" aria-labelledby="hero-title">
-          <div className="hero-kicker">
-            <span><Radio aria-hidden="true" /> AGENT ECONOMY 2026</span>
-            <span>BASE SEPOLIA</span>
-          </div>
-          <h1 id="hero-title">Pay after proof.<span>Refund after failure.</span></h1>
-          <p className="hero-summary">
-            A post-fulfillment settlement layer for paid Lucid tasks. x402 sends
-            USDC into a KeeperHub-controlled wallet; deterministic verification
-            decides the only transfer that can follow.
-          </p>
-          <div className="hero-actions">
-            <a className="primary-action" href="#route">
-              Inspect the route <ArrowRight aria-hidden="true" />
-            </a>
-            <a className="text-action" href={githubUrl} target="_blank" rel="noreferrer">
-              Read the implementation <ExternalLink aria-hidden="true" />
-            </a>
-          </div>
-          <dl className="hero-facts">
-            <div><dt>Payment rail</dt><dd>x402 exact / USDC</dd></div>
-            <div><dt>Execution rail</dt><dd>KeeperHub direct transfer</dd></div>
-            <div><dt>Replay boundary</dt><dd>1 operation → 1 transfer</dd></div>
-          </dl>
-        </section>
-
-        <aside className="hero-proof" aria-label="Core settlement invariant">
-          <div className="proof-grid" aria-hidden="true" />
-          <div className="proof-topline">
-            <span className="mono-label">SYSTEM INVARIANT / 001</span>
-            <span className="proof-status"><Check aria-hidden="true" /> TESTED</span>
-          </div>
-          <div className="proof-lock"><LockKeyhole aria-hidden="true" /></div>
-          <p className="proof-equation">
-            <span>terminal task</span><b>+</b><span>valid verdict</span><b>+</b><span>verified receipt</span>
-          </p>
-          <div className="proof-result"><span>USDC may move</span><ShieldCheck aria-hidden="true" /></div>
-          <p className="proof-note">
-            The wallet is not called escrow. It is a controlled settlement
-            account, and KeeperHub is the sole post-task spender.
-          </p>
-        </aside>
-      </div>
-
-      <section className="problem-strip" aria-labelledby="problem-title">
-        <div className="section-index">00 / THE GAP</div>
-        <div>
-          <h2 id="problem-title">Payment success is not fulfillment success.</h2>
-          <p>
-            Lucid can settle an async task after reservation and before the work
-            finishes. Sending that payment directly to a worker turns a failed
-            task into an unrecoverable commercial outcome. This integration
-            changes the destination and makes the terminal state executable.
-          </p>
-        </div>
-        <div className="gap-contrast" aria-label="Before and after comparison">
-          <div><span>DIRECT-TO-WORKER</span><strong>Paid, then failed</strong><small>No automatic recovery</small></div>
-          <ArrowRight aria-hidden="true" />
-          <div><span>SETTLEMENT RECOVERY</span><strong>Held, verified, resolved</strong><small>Payout or payer-bound refund</small></div>
-        </div>
-      </section>
-
-      <section id="route" className="route-section">
-        <div className="section-heading">
-          <div className="section-index">01 / MONEY PATH</div>
-          <div>
-            <h2>One terminal decision. Two safe outcomes.</h2>
-            <p>
-              Switch the trace to see what changes—and what remains fixed.
-              KeeperHub simulates and executes both branches through the same
-              receipt-gated adapter.
-            </p>
-          </div>
-        </div>
-        <SettlementFlow />
-      </section>
-
-      <section className="invariants-section" aria-labelledby="invariants-title">
-        <div className="section-index">02 / TRUST BOUNDARIES</div>
-        <div className="invariants-intro">
-          <h2 id="invariants-title">Small surface. Hard edges.</h2>
-          <p>
-            The integration accepts less so it can prove more: one network, one
-            asset, one deterministic verifier, and one post-task execution path.
-          </p>
-        </div>
-        <div className="invariant-list">
-          <article><span>01</span><ShieldCheck aria-hidden="true" /><h3>Payer-bound refunds</h3><p>The refund address is derived from the verified x402 response—not task input.</p></article>
-          <article><span>02</span><Braces aria-hidden="true" /><h3>Deterministic verdicts</h3><p>Schema, deadline, receipt status, and counts decide. No model participates in payout.</p></article>
-          <article><span>03</span><LockKeyhole aria-hidden="true" /><h3>Immutable direction</h3><p>The first terminal decision is durable. A replay cannot flip refund into payout.</p></article>
-          <article><span>04</span><RefreshCcw aria-hidden="true" /><h3>Crash-safe replay</h3><p>The operation-derived KeeperHub key names the work, so an interrupted attempt resumes.</p></article>
-        </div>
-      </section>
-
-      <section id="evidence" className="evidence-section" aria-labelledby="evidence-title">
-        <div className="section-heading evidence-heading">
-          <div className="section-index">03 / PUBLIC EVIDENCE</div>
-          <div>
-            <h2 id="evidence-title">Claims become a receipt ledger.</h2>
-            <p>
-              Each row joins four namespaces: operation, Lucid task, KeeperHub
-              execution, and onchain transaction. The ledger refuses to display
-              fixture hashes as live evidence.
-            </p>
-          </div>
-        </div>
-        <EvidenceLedger />
-      </section>
-
-      <section id="recovery" className="recovery-section" aria-labelledby="recovery-title">
-        <div className="section-heading">
-          <div className="section-index">04 / FAILURE RECOVERY</div>
-          <div>
-            <h2 id="recovery-title">The failure demo is the product demo.</h2>
-            <p>
-              Happy-path payout is expected. The differentiator is refusing bad
-              state and recovering uncertain state without another transfer.
-            </p>
-          </div>
-        </div>
-        <div className="recovery-matrix" role="region" aria-label="Recovery behavior table" tabIndex={0}>
-          <table>
-            <thead><tr><th scope="col">Injected condition</th><th scope="col">Deterministic response</th><th scope="col">Money outcome</th><th scope="col">Proof</th></tr></thead>
-            <tbody>
-              <tr><th scope="row"><TriangleAlert aria-hidden="true" /> Receipt missing</th><td><code>RECEIPTS_NOT_CONFIRMED</code></td><td><span className="outcome-refund">Refund payer</span></td><td>Verified KeeperHub receipt</td></tr>
-              <tr><th scope="row"><TriangleAlert aria-hidden="true" /> Deadline exceeded</th><td><code>DEADLINE_EXCEEDED</code></td><td><span className="outcome-refund">Refund payer</span></td><td>Immutable terminal decision</td></tr>
-              <tr><th scope="row"><RefreshCcw aria-hidden="true" /> Duplicate settle</th><td>Return stored operation</td><td><span className="outcome-neutral">No second transfer</span></td><td>Stable idempotency key</td></tr>
-              <tr><th scope="row"><RefreshCcw aria-hidden="true" /> Crash after broadcast</th><td>Poll saved execution ID</td><td><span className="outcome-neutral">Resume, never resend</span></td><td>SQLite + KeeperHub status</td></tr>
-              <tr><th scope="row"><TriangleAlert aria-hidden="true" /> Unverified completion</th><td>Fail closed</td><td><span className="outcome-blocked">Block finality claim</span></td><td><code>receipts[].verified</code></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="implementation-section" aria-labelledby="implementation-title">
-        <div className="implementation-copy">
-          <div className="section-index">05 / ADAPTER CONTRACT</div>
-          <h2 id="implementation-title">Safe first-write is executable code.</h2>
-          <p>
-            The adapter sends human-readable USDC to KeeperHub, keeps the body
-            stable, and refuses to call a self-reported hash final.
-          </p>
-          <a href={`${githubUrl}/tree/main/src/keeperhub`} target="_blank" rel="noreferrer">Inspect the adapter <ArrowRight aria-hidden="true" /></a>
-        </div>
-        <div className="code-window" aria-label="KeeperHub settlement sequence code example">
-          <div className="code-titlebar"><span>settle.ts</span><span>POST-FULFILLMENT ONLY</span></div>
-          <pre><code>{`const verdict = verifyLucidTask(task)
-const key = stableKey(operationId, verdict)
-
-await keeperhub.simulate(transfer)
-const execution = await keeperhub.execute({
-  ...transfer,
-  idempotencyKey: key,
-})
-
-const receipt = await keeperhub.poll(execution.id)
-assert(receipt.verified && receipt.status === "success")`}</code></pre>
-        </div>
-      </section>
-
-      <section className="final-cta">
-        <div><span className="mono-label">BUILT FOR KEEPERHUB AGENT ECONOMY</span><h2>The worker gets paid when the work is proven.</h2><p>The buyer gets made whole when it is not.</p></div>
-        <a className="primary-action dark-action" href={githubUrl} target="_blank" rel="noreferrer"><GitBranch aria-hidden="true" /> Review the source</a>
-      </section>
-
-      <footer>
-        <div className="brand footer-brand"><span className="brand-mark" aria-hidden="true"><span /><span /></span><span><strong>Settlement Recovery</strong><small>Lucid × KeeperHub</small></span></div>
-        <p>Base Sepolia · Exact x402 · USDC · Deterministic verification</p>
-        <a href={githubUrl} target="_blank" rel="noreferrer">GitHub <ExternalLink aria-hidden="true" /></a>
-      </footer>
-    </main>
-  );
+  return <main id="top">
+    <PublicationMotion />
+    <header className="site-header">
+      <a className="brand" href="#top" aria-label="Settlement Recovery home">SR<span>Settlement<br />Recovery</span></a>
+      <span className="header-edition">TECHNICAL PUBLICATION<br />LUCID × KEEPERHUB / 2026</span>
+      <nav aria-label="Primary navigation"><a href="#route">System</a><a href="#evidence">Evidence</a><a href={github} target="_blank" rel="noreferrer">Source <ArrowUpRight /></a></nav>
+    </header>
+    <section className="editorial-hero" aria-labelledby="hero-title">
+      <div className="hero-kicker"><span>01 — COMMERCE FOR AGENTS</span><span>BASE SEPOLIA / USDC</span></div>
+      <h1 id="hero-title">Work first.<br /><span>Settle after.</span></h1>
+      <figure className="hero-object">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/settlement-gate.png" alt="Conceptual black routing gate guiding a paper receipt around an orange roller, with pencil engineering annotations" width="1536" height="1024" fetchPriority="high" />
+        <figcaption><span>FIG. 01 / THE SETTLEMENT GATE</span><span>CONCEPTUAL STUDY</span></figcaption>
+      </figure>
+      <div className="hero-bottom"><span className="hero-index" aria-hidden="true">↘</span><div><p>Agents get paid for work that holds up.<br />Buyers get refunded when it doesn’t.</p><a className="ink-link" href="#route">Follow the money <ArrowDownRight /></a></div><p className="hero-description">A post-fulfillment settlement layer for Lucid. Payment enters a controlled wallet. Deterministic verification decides what happens next.</p></div>
+    </section>
+    <section className="thesis-strip"><span className="section-index">THE PRINCIPLE</span><h2>Payment is a start.<br />Proof is the finish.</h2><p>x402 sends USDC into a KeeperHub-controlled wallet before the work finishes. After verification, KeeperHub releases a payout or returns the payment to its verified buyer.</p></section>
+    <section id="route" className="route-section">
+      <div className="section-heading"><span className="section-index">02 / SYSTEM DRAWING</span><h2>One decision.<br />Two outcomes.</h2><p>Select an outcome to inspect the settlement sequence. This trace explains the logic; it does not send a payment.</p></div>
+      <SettlementFlow />
+      <div className="custody-note"><span>OPERATOR CUSTODY</span><p>The wallet is not called escrow. KeeperHub is the sole post-task spender. This release uses a controlled settlement account, not a trustless escrow contract.</p></div>
+    </section>
+    <section id="evidence" className="evidence-section">
+      <div className="section-heading"><span className="section-index">03 / FIELD RECORDS</span><h2>Show the<br />receipts.</h2><p>Real Base Sepolia transactions. Every exported record connects the Lucid task, KeeperHub execution and final transfer.</p></div>
+      <EvidenceLedger />
+      <a className="ink-link evidence-download" href="/evidence/receipts.json" target="_blank" rel="noreferrer">Open the complete receipt bundle <ArrowUpRight /></a>
+    </section>
+    <section id="recovery" className="recovery-section">
+      <div className="section-heading"><span className="section-index">04 / FAILURE PROTOCOL</span><h2>Failure has<br />a way back.</h2><p>The failure demo is the product demo. A missed receipt triggers a refund; uncertain execution is recovered using the saved record.</p></div>
+      <div className="recovery-matrix" role="region" aria-label="Recovery behavior table" tabIndex={0}><table><thead><tr><th scope="col">Condition</th><th scope="col">Response</th><th scope="col">Evidence level</th></tr></thead><tbody>
+        <tr><th scope="row">01 / Missing receipt</th><td>Refund the verified buyer</td><td>Live testnet receipt</td></tr>
+        <tr><th scope="row">02 / Deadline exceeded</th><td>Fix the refund decision</td><td>Automated test</td></tr>
+        <tr><th scope="row">03 / Duplicate settlement</th><td>Return the stored result</td><td>Automated test</td></tr>
+        <tr><th scope="row">04 / Process interrupted</th><td>Poll the saved execution ID</td><td>Process-kill test; mocked KeeperHub</td></tr>
+        <tr><th scope="row">05 / Unverified receipt</th><td>Refuse the finality claim</td><td>Automated test</td></tr>
+      </tbody></table></div>
+    </section>
+    <section className="implementation-section"><div><span className="section-index">05 / BUILDER NOTES</span><h2>Small surface.<br />Hard guarantees.</h2><p>One network. One asset. A deterministic receipt verifier. A stable key that follows the operation through recovery.</p><a className="ink-link" href={`${github}/blob/main/docs/adapter.md`} target="_blank" rel="noreferrer">Build with the adapter <ArrowUpRight /></a></div><div className="code-window"><div className="code-titlebar"><span>SETTLEMENT SEQUENCE</span><span>01—04</span></div><ol><li><span>VERIFY</span><code>schema · deadline · receipts</code></li><li><span>SIMULATE</span><code>check transfer + sender</code></li><li><span>EXECUTE</span><code>stable Idempotency-Key</code></li><li><span>CONFIRM</span><code>verified onchain receipt</code></li></ol><p>Never let a model decide who gets paid.</p></div></section>
+    <footer><a className="brand" href="#top">SR<span>Settlement<br />Recovery</span></a><p>LUCID × KEEPERHUB<br />BASE SEPOLIA / EXPERIMENTAL RELEASE</p><a className="ink-link" href={github} target="_blank" rel="noreferrer">Inspect the source <ArrowUpRight /></a><span className="footer-end">END OF RECORD / 001</span></footer>
+  </main>;
 }
