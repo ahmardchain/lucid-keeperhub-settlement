@@ -25,6 +25,8 @@ jobs:
         with:
           name: lucid-settlement-adapter
           path: .release/*.tgz
+          include-hidden-files: true
+          if-no-files-found: error
       - run: npx tsc --noEmit
       - run: npm run lint
       - run: npm test
