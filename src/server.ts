@@ -16,7 +16,21 @@ globalThis.fetch = async (input, init) => {
       : input instanceof URL
         ? input.toString()
         : input.url;
-  const response = await originalFetch(input, init);
+  let response: Response;
+  try {
+    response = await originalFetch(input, init);
+  } catch (error) {
+    if (requestUrl.startsWith(`${facilitatorBaseUrl}/`)) {
+      const failure = error as { name?: unknown; cause?: { code?: unknown } };
+      const code = failure?.cause?.code ?? failure?.name;
+      console.error("[x402:facilitator] transport failure", {
+        path: new URL(requestUrl).pathname,
+        code: typeof code === "string" && /^[a-z0-9_]{1,80}$/i.test(code)
+          ? code : "FETCH_FAILED",
+      });
+    }
+    throw error;
+  }
   if (
     requestUrl.startsWith(`${facilitatorBaseUrl}/`) &&
     (requestUrl.endsWith("/verify") || requestUrl.endsWith("/settle"))
