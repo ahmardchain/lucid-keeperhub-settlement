@@ -59,9 +59,9 @@ Every receipt row joins `operationId`, `lucidTaskId`, `keeperhubExecutionId`, x4
 
 ## Evidence scope
 
-The exported live bundle currently contains one payout and one refund. All four incoming/outgoing transactions were independently checked against Base Sepolia USDC Transfer events. The larger batch remains pending. The dashboard is publicly accessible; the paid backend still runs separately on the builder's PC.
+The exported live bundle contains 8 payouts and 5 refunds: 13 KeeperHub settlement operations and 26 incoming/outgoing transactions. These counts describe the recorded live bundle, not the automated tests. `npm run evidence:verify` checks the USDC Transfer events through RPC. The dashboard is publicly accessible; the paid backend still runs separately on the builder's PC.
 
-The installable ESM adapter tarball builds with `npm run adapter:pack`. A separate consumer loads the packaged application with the real Lucid runtime; its external facilitator is mocked. A subprocess kill/restart test proves recovery from a persisted pending execution ID without another broadcast, with KeeperHub mocked. These tests are not claimed as live onchain crash-recovery evidence.
+The installable ESM adapter tarball builds with `npm run adapter:pack`. A separate invoice consumer exercises its own Lucid capability with an application-owned verifier and the packaged adapter. Its payment and KeeperHub boundaries are fixtures, not additional live transactions. A subprocess kill/restart test proves recovery from a persisted pending execution ID without another broadcast, with KeeperHub mocked. These tests are not claimed as live onchain crash-recovery evidence.
 
 ## Live and automated cases
 
@@ -72,6 +72,10 @@ The installable ESM adapter tarball builds with `npm run adapter:pack`. A separa
 - completed execution without independently verified receipt → fail closed;
 - subprocess interruption recovered by saved execution ID (automated, KeeperHub mocked);
 - unresolved retry after KeeperHub's 24-hour replay window → block for manual reconciliation.
+
+## Demo status and contacts
+
+The video URL above is intentionally unfinished until an actual recording exists. Supply the public recording, email and X/Discord contact in the submission form. Run `npm run submission:check` with `DEMO_VIDEO_URL`, `CONTACT_EMAIL` and `CONTACT_HANDLE` set. This check does not submit anything or claim eligibility.
 
 ## Verification
 
@@ -84,4 +88,6 @@ The repository includes deterministic unit tests, SQLite reopen tests, KeeperHub
 - protocol-fee splitting;
 - redundant RPC and confirmation-depth policy;
 - distributed payment-capture storage and horizontally scaled settlement workers;
-- automated reconciliation for the narrow crash window between x402 settlement and local reservation.
+- unknown upstream payment outcomes when no trusted receipt reaches the process require operator reconciliation; observed paid task/receipt pairs are recovered from the durable journal at restart.
+- no external adoption is claimed for the adapter; the invoice consumer is an integration example.
+- a recorded demo video and final contact details must still be attached by the submitter.

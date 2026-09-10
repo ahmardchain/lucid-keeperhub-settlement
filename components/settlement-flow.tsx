@@ -46,7 +46,10 @@ export function SettlementFlow() {
   }, []);
   useEffect(() => {
     if (!playing) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setStage(4); setPlaying(false); return; }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const timer = window.setTimeout(() => { setStage(4); setPlaying(false); }, 0);
+      return () => window.clearTimeout(timer);
+    }
     const timers = [1, 2, 3, 4].map((next) => window.setTimeout(() => {
       setStage(next);
       if (next === 4) setPlaying(false);

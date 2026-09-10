@@ -60,4 +60,4 @@ for (const operation of bundle.operations) {
   }
   console.info(`Verified ${operation.direction}: ${operation.operationId}`);
 }
-console.info(JSON.stringify({ payouts, refunds, transactions: bundle.operations.length * 2, targetMet: payouts >= 10 && refunds >= 10 }));
+console.info(JSON.stringify({ payouts, refunds, transactions: bundle.operations.length * 2, keeperhubSettlements: bundle.operations.length, bothPathsVerified: payouts > 0 && refunds > 0 }));

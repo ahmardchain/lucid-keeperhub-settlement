@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { PaymentJournal, paymentContext, type PaymentIntent } from "./payment-journal";
 import { a2a } from "@lucid-agents/a2a";
 import { createAgent } from "@lucid-agents/core";
 import { createAgentApp } from "@lucid-agents/hono";
@@ -28,12 +30,6 @@ interface TaskCreationBody {
   message?: { content?: { text?: string } };
 }
 
-interface TaskCreationResponse {
-  taskId?: string;
-  accessToken?: string;
-  status?: string;
-}
-
 function parseEntrypointInput(body: TaskCreationBody): unknown {
   const text = body.message?.content?.text;
   if (typeof text !== "string") throw new Error("Task request omitted message text");
@@ -41,6 +37,7 @@ function parseEntrypointInput(body: TaskCreationBody): unknown {
 }
 
 export async function createSettlementAgentService(config: ServiceConfig) {
+  const journal = new PaymentJournal(config.databasePath);
   const taskStore = new SqliteTaskStore({
     databasePath: config.databasePath,
     maxTasks: 2_000,
@@ -65,6 +62,28 @@ export async function createSettlementAgentService(config: ServiceConfig) {
     taskStore,
   });
 
+  // Observe the trusted facilitator response before Lucid can return it to a
+  // client. AsyncLocalStorage binds concurrent requests to their own intent.
+  const originalFetch = globalThis.fetch;
+  const observedFetch: typeof fetch = async (input, init) => {
+    const capture = paymentContext.getStore();
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const response = await originalFetch(input, init);
+    if (capture?.journal === journal && url === `${config.facilitatorUrl.replace(/\/$/, "")}/settle`) {
+      const body = await response.clone().json().catch(() => null) as Record<string, unknown> | null;
+      if (response.ok && body?.success === true) {
+        journal.update(capture.operationId, { payment: parsePaymentEvidence({
+          paymentResponseHeader: Buffer.from(JSON.stringify(body)).toString("base64"),
+          expectedNetwork: NETWORK, expectedAssetAddress: config.baseSepoliaUsdcAddress,
+          expectedAmountAtomic: config.taskPriceAtomic, settlementAddress: config.settlementAddress,
+        }) });
+      }
+    }
+    return response;
+  };
+  globalThis.fetch = observedFetch;
+
+  try {
   const runtime = await createAgent({
     name: "Lucid Settlement Recovery",
     version: "0.1.0",
@@ -135,6 +154,7 @@ export async function createSettlementAgentService(config: ServiceConfig) {
         config,
         coordinator,
         watcher,
+        journal,
       });
     },
     afterMount(app) {
@@ -152,6 +172,13 @@ export async function createSettlementAgentService(config: ServiceConfig) {
     },
   });
 
+  for (const intent of journal.pending()) {
+    if (intent.payment && intent.taskId) {
+      await captureIntent(intent, { coordinator, watcher, journal });
+    } else {
+      console.warn(`[settlement:reconciliation] ${intent.operationId}: payment outcome unknown; automatic resubmission blocked`);
+    }
+  }
   const recovered = await watcher.recover();
   if (recovered > 0) {
     console.info(`[settlement:recovery] resumed ${recovered} operation(s)`);
@@ -164,12 +191,37 @@ export async function createSettlementAgentService(config: ServiceConfig) {
     taskStore,
     coordinator,
     watcher,
+    journal,
     async close() {
       watcher.close();
       await runtime.close();
       settlementStore.close();
+      journal.close();
+      if (globalThis.fetch === observedFetch) globalThis.fetch = originalFetch;
     },
   };
+  } catch (error) {
+    watcher.close();
+    taskStore.close();
+    settlementStore.close();
+    journal.close();
+    if (globalThis.fetch === observedFetch) globalThis.fetch = originalFetch;
+    throw error;
+  }
+}
+
+async function captureIntent(
+  intent: PaymentIntent,
+  dependencies: { coordinator: SettlementCoordinator; watcher: SettlementWatcher; journal: PaymentJournal },
+): Promise<void> {
+  if (!intent.payment || !intent.taskId) return;
+  await dependencies.coordinator.reserve({
+    task: { operationId: intent.operationId, lucidTaskId: intent.taskId, lucidRunId: intent.taskId,
+      entrypoint: intent.entrypoint, reservedAt: intent.reservedAt, deadlineAt: intent.deadlineAt },
+    payment: intent.payment, workerAddress: intent.workerAddress,
+  });
+  dependencies.journal.update(intent.operationId, {state: "captured"});
+  dependencies.watcher.watch(intent.operationId);
 }
 
 function mountSettlementCapture(
@@ -178,76 +230,55 @@ function mountSettlementCapture(
     config: ServiceConfig;
     coordinator: SettlementCoordinator;
     watcher: SettlementWatcher;
+    journal: PaymentJournal;
   },
 ): void {
   app.use("/api/agent/tasks", async (context, next) => {
     if (context.req.method !== "POST") return next();
-    const request = context.req.raw.clone();
-    let requestBody: TaskCreationBody;
+    let input: ReturnType<typeof receiptAuditInputSchema.parse>;
+    let body: TaskCreationBody;
     try {
-      requestBody = await request.json() as TaskCreationBody;
-      if (requestBody.skillId === ENTRYPOINT) {
-        const input = receiptAuditInputSchema.parse(parseEntrypointInput(requestBody));
-        if (request.headers.get("Idempotency-Key")?.trim() !== input.operationId) {
-          return context.json({ error: "operationId must match Idempotency-Key" }, 400);
-        }
+      body = await context.req.raw.clone().json() as TaskCreationBody;
+      if (body.skillId !== ENTRYPOINT) return next();
+      input = receiptAuditInputSchema.parse(parseEntrypointInput(body));
+      if (context.req.header("Idempotency-Key")?.trim() !== input.operationId) {
+        return context.json({ error: "operationId must match Idempotency-Key" }, 400);
       }
-    } catch {
-      return context.json({ error: "Invalid task input" }, 400);
+    } catch { return context.json({error: "Invalid task input"}, 400); }
+    const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+    const owner = context.req.header("Task-Access-Token") ?? "";
+    const requestDigest = digest(JSON.stringify(input));
+    const previous = dependencies.journal.get(input.operationId);
+    if (previous) {
+      if (!owner || previous.ownerDigest !== digest(owner) || previous.requestDigest !== requestDigest) {
+        return context.json({error: {code: "operation_conflict", message: "Operation already exists with different credentials or input."}}, 409);
+      }
+      // Replay never passes the request to x402 again, even after a restart.
+      if (previous.state === "captured" && previous.taskId) {
+        context.header("X-Settlement-Operation", input.operationId);
+        context.header("X-Settlement-Replayed", "true");
+        return context.json({taskId: previous.taskId, accessToken: owner, status: "running"});
+      }
+      return context.json({error: {code: "reconciliation_required", message: "Payment attempt recorded. Inspect its journal before retrying; no new payment was sent."}}, 409);
     }
-    await next();
-
-    const paymentResponseHeader =
-      context.res.headers.get("PAYMENT-RESPONSE") ??
-      context.res.headers.get("X-PAYMENT-RESPONSE");
-    if (!context.res.ok || !paymentResponseHeader) return;
-
+    const signed = context.req.header("PAYMENT-SIGNATURE") ?? context.req.header("X-PAYMENT");
+    // An unsigned challenge cannot transfer funds; do not reserve its ID.
+    if (!signed || !owner) return next();
+    const now = new Date();
+    dependencies.journal.begin({operationId: input.operationId, requestDigest,
+      ownerDigest: digest(owner), entrypoint: ENTRYPOINT,
+      workerAddress: input.workerAddress.toLowerCase() as `0x${string}`,
+      reservedAt: now.toISOString(), deadlineAt: new Date(now.getTime() + dependencies.config.taskDeadlineMs).toISOString(),
+      state: "pending"});
+    await paymentContext.run({journal: dependencies.journal, operationId: input.operationId}, next);
     try {
-      const responseBody = await context.res.clone().json() as TaskCreationResponse;
-      if (requestBody.skillId !== ENTRYPOINT || !responseBody.taskId) return;
-      const input = receiptAuditInputSchema.parse(
-        parseEntrypointInput(requestBody),
-      );
-      const idempotencyKey = request.headers.get("Idempotency-Key")?.trim();
-      if (idempotencyKey !== input.operationId) {
-        throw new Error(
-          "Task operationId must exactly match the Lucid Idempotency-Key",
-        );
-      }
-
-      const reservedAt = new Date();
-      await dependencies.coordinator.reserve({
-        task: {
-          operationId: input.operationId,
-          lucidTaskId: responseBody.taskId,
-          lucidRunId: responseBody.taskId,
-          entrypoint: ENTRYPOINT,
-          reservedAt: reservedAt.toISOString(),
-          deadlineAt: new Date(
-            reservedAt.getTime() + dependencies.config.taskDeadlineMs,
-          ).toISOString(),
-        },
-        payment: parsePaymentEvidence({
-          paymentResponseHeader,
-          expectedNetwork: NETWORK,
-          expectedAssetAddress: dependencies.config.baseSepoliaUsdcAddress,
-          expectedAmountAtomic: dependencies.config.taskPriceAtomic,
-          settlementAddress: dependencies.config.settlementAddress,
-        }),
-        workerAddress: input.workerAddress.toLowerCase() as `0x${string}`,
-      });
-      dependencies.watcher.watch(input.operationId);
-
-      const decorated = new Response(context.res.body, context.res);
-      decorated.headers.set("X-Settlement-Operation", input.operationId);
-      context.res = decorated;
-    } catch (error) {
-      // Payment is already committed at this point. Preserve Lucid's task
-      // capability and receipt; the settlement wallet keeps funds recoverable.
-      console.error("[settlement:capture] paid task needs reconciliation", error);
-      const decorated = new Response(context.res.body, context.res);
-      decorated.headers.set("X-Settlement-Capture", "reconciliation-required");
-      context.res = decorated;
+      const intent = dependencies.journal.get(input.operationId)!;
+      await captureIntent(intent, dependencies);
+      context.header("X-Settlement-Operation", input.operationId);
+      if (!intent.payment || !intent.taskId) context.header("X-Settlement-Capture", "reconciliation-required");
+    } catch {
+      console.error(`[settlement:capture] ${input.operationId}: reconciliation required`);
+      context.header("X-Settlement-Capture", "reconciliation-required");
     }
   });
 }

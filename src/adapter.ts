@@ -8,3 +8,7 @@ export { parsePaymentEvidence } from "./x402/payment-evidence";
 export { createSettlementAgentService } from "./lucid/service";
 export { serviceConfigFromEnv, BASE_SEPOLIA_USDC } from "./config";
 export type { ServiceConfig } from "./config";
+
+export { withOutputVerifier } from "./settlement/output-verifier";
+export { SqliteTaskStore } from "./lucid/sqlite-task-store";
+export { SettlementWatcher } from "./lucid/settlement-watcher";

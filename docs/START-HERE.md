@@ -21,12 +21,12 @@ If Git reports conflicting local changes, stop and preserve those files before r
 
 - Public editorial website with animated payout/refund trace and real receipt links.
 - Paid Lucid async agent integrated with KeeperHub settlement and refund execution.
-- One real payout and one real refund with incoming/outgoing transaction evidence.
+- Eight real payouts and five real refunds with incoming/outgoing transaction evidence.
 - Durable SQLite recovery, deterministic verification and idempotency checks.
 - Installable adapter package, automated tests and CI workflow.
 - Backend Docker definition, deployment guide, submission text and recording script.
 
-## Finish the evidence on your PC
+## Rehearse on your PC
 
 Use exactly one server terminal:
 
@@ -37,13 +37,13 @@ npm run agent:dev
 Keep it open. In a second terminal in the same project:
 
 ```powershell
-$env:DEMO_RUNS_PER_PATH="10"
+$env:DEMO_RUNS_PER_PATH="1"
 npm run demo:live
 Remove-Item Env:DEMO_RUNS_PER_PATH
 npm run evidence:verify
 ```
 
-This starts 20 paid testnet tasks, requiring at least 0.20 test USDC plus a buffer in the buyer wallet and network-fee funding for KeeperHub. It is optional additional evidence, not proof already collected. If a paid task fails, reconcile its operation before retrying; do not launch concurrent demo runners. The existing receipt bundle is retained.
+This starts one payout/refund pair of paid testnet tasks. No extra transaction count is required for submission. It is optional additional evidence, not proof already collected. If a paid task fails, reconcile its operation before retrying; do not launch concurrent demo runners. The existing receipt bundle is retained.
 
 After successful verification, inspect and commit only the public evidence:
 
@@ -80,4 +80,6 @@ Use this instruction in the repository:
 
 > Read docs/START-HERE.md, docs/milestones.md, docs/backend-deployment.md and docs/submission-draft.md. Preserve the existing live evidence and paper/ink/orange editorial UI. Inspect the actual code before changing it. Finish the outstanding release gates with available credentials, never fabricate transactions or claim mocked tests are live proof. Never print or commit secrets. Do not replace the real Lucid/KeeperHub integrations with mocks in production.
 
-The open gates are funded batch and live recovery evidence, backend hosting, an actual recorded video and final submission. These require the owner's PC, accounts or credentials; they are not completed by this handoff.
+The open gates are a live rehearsal of the updated build, an actual recorded video and final submission. Public backend hosting is optional for submission but needs separate provisioning. These require the owner's PC, accounts or credentials; they are not completed by this handoff.
+
+For an interrupted new run: `npm run demo:resume` performs only status reads. `npm run reconciliation:status` lists unresolved server journal entries. Never clear an unknown payment merely to run another batch.

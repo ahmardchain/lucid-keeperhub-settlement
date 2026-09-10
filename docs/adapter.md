@@ -1,17 +1,36 @@
 # Lucid KeeperHub settlement adapter
 
-Build the installable ESM package with `npm run adapter:pack`. The tarball is in `.release/`. Install it into a Node 22.13+ application with `npm install /absolute/path/to/the.tgz`.
+`npm run adapter:pack` creates `.release/ahmardchain-lucid-keeperhub-settlement-0.1.0.tgz` with ESM JavaScript and TypeScript declarations. Install with `npm install /absolute/path/to/the.tgz` on Node 22.13+.
+
+## Complete paid receipt-audit service
 
 ```js
-import { createSettlementAgentService, serviceConfigFromEnv } from '@ahmardchain/lucid-keeperhub-settlement';
+import {createSettlementAgentService, serviceConfigFromEnv} from '@ahmardchain/lucid-keeperhub-settlement';
 const service = await createSettlementAgentService(serviceConfigFromEnv());
-// Mount service.app.fetch in your HTTP server; call service.close() on shutdown.
+// Mount service.app.fetch in your HTTP server. Await service.close() on exit.
 ```
 
-This factory creates the real Lucid paid receipt-audit application with durable tasks, the payment-capture middleware and KeeperHub settlement watcher. It requires the server configuration documented in the repository's `.env.example`. Keep the buyer demo key out of the server environment.
+This creates the paid Lucid capability, durable tasks, capture journal and settlement watcher. Configure the values in `.env.example`; keep the buyer private key out of the server deployment. Run one replica and keep SQLite on persistent storage. The scoped fetch observer reads only this service's facilitator settlement responses; it does not retry money requests.
 
-For an existing Lucid application, the package also exports `SettlementCoordinator`, `SqliteSettlementStore`, `KeeperHubHttpExecutor`, `parsePaymentEvidence` and their TypeScript interfaces. After a verified paid task is reserved, call `coordinator.reserve({task, payment, workerAddress})`; after fulfillment call `coordinator.settle(taskEvidence)`. The task and payment identity must refer to that exact reservation. Never build payment evidence from caller-supplied payer fields.
+## Existing Lucid application
 
-The default verifier supports the receipt-audit output schema. Other capabilities need an explicitly implemented deterministic verifier; this package does not claim arbitrary output support. The supplied service factory is the supported complete integration for this release.
+The coordinator accepts `verifier: withOutputVerifier('your-policy/v1', acceptsOutput)`. The callback must return a boolean synchronously. Throwing or returning false rejects the output. Cancellation, failure and elapsed deadlines remain enforced before the application callback. Choose a deterministic policy meaningful for your task; a schema alone does not prove arbitrary work is correct.
 
-Persist the database across restarts and run one service replica. Simulate before broadcast; maintain the stable operation-derived idempotency key. Do not change operation IDs to recover a failed request. The payment-to-local-reservation crash gap requires reconciliation. Base Sepolia only; operator custody, no trustless escrow or fee splitting.
+Exported building blocks: `SettlementCoordinator`, `SqliteSettlementStore`, `SqliteTaskStore`, `SettlementWatcher`, `KeeperHubHttpExecutor`, `parsePaymentEvidence` and `withOutputVerifier`.
+
+1. Keep your own Lucid capability and runtime.
+2. After trusted incoming payment and durable task reservation, call `coordinator.reserve({task, payment, workerAddress})` with matching identity.
+3. Feed persisted terminal task evidence to `coordinator.settle(taskEvidence)` or use `SettlementWatcher` with the provided stores.
+4. Save the operation ID and reuse it on replay; never trust payment evidence supplied by the caller.
+
+`examples/invoice-consumer/app.mjs` is an executable example of a **different** capability: invoice arithmetic validation. `npm run adapter:test` installs the tarball into a clean temporary project outside this repository, creates real Lucid tasks and checks payout, refund and replay. External payment and KeeperHub services are fixtures. Installation needs registry access; this is not a live-money test or proof of third-party adoption.
+
+The complete capture journal is wired into the bundled paid service. A custom application using only the coordinator must connect its own durable payment admission/capture lifecycle; importing the coordinator does not automatically intercept its payments.
+
+## Recovery boundaries
+
+Before a signed paid request is forwarded, its operation and credential/input digests are written to SQLite. No signing keys or signed authorizations are stored. Trusted facilitator receipt and task ID observations are persisted. A restart reconciles complete pairs before monitoring settlement. Replaying a captured operation with the same input and access token returns the existing task without invoking x402 again; changed input/owner is rejected.
+
+An interrupted request with no trusted payment receipt remains pending. `npm run reconciliation:status` lists it without secrets. The server blocks replay; do not delete the row or generate a new operation to assume payment did not occur. Reconcile with the facilitator and chain first. Automatic resolution of unknown external outcomes is intentionally not claimed.
+
+Base Sepolia only. Operator-controlled custody. No trustless escrow or fee splitting.

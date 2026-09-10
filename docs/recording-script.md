@@ -16,10 +16,10 @@ Show the missing-receipt task and deterministic failure reason. Open its refund 
 
 ## 1:45–2:15 — Recovery evidence
 
-Show an actual recorded replay or restart recovery if available, including the unchanged execution ID and absence of a second transfer. Otherwise label the automated test clearly and say the live recovery demonstration is still pending.
+After a completed run with this release, execute `npm run demo:replay`. It sends no payment signature and checks that the server returns the saved task and unchanged execution/transaction. Show an actual recorded replay or restart recovery if available, including the unchanged execution ID and absence of a second transfer. Otherwise label the automated test clearly and say the live recovery demonstration is still pending.
 
 ## 2:15–2:45 — Reuse and limits
 
-Show source entrypoints and the receipts bundle. State the current live operation count from the bundle, not the target count. Close with limitations: mainnet, fee splits, trustless escrow and the payment-to-reservation reconciliation gap.
+Show source entrypoints and the receipts bundle. State the current live operation count from the bundle, not the target count. Close with limitations: mainnet, fee splits and trustless escrow are outside scope. Observed payment/task pairs now recover from the journal; unknown upstream payment outcomes still need reconciliation.
 
 Upload the finished video only after reviewing it for secrets. Copy the public link into the submission draft; verify access while signed out.

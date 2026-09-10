@@ -80,3 +80,7 @@ Because the KeeperHub organization controls the wallet, this is a custodial sett
 - sanctions, identity, tax, or marketplace dispute processes;
 - decentralized RPC consensus or reorg-depth confirmation;
 - protocol-fee splitting and multi-recipient payout atomicity.
+
+## Payment capture journal
+
+Signed requests are durably recorded before forwarding. Task IDs and trusted facilitator success receipts are stored before returning to the client. Startup reconciles complete pairs, and captured operation replay is bound to the same credential/input digests without another payment. Unknown upstream outcomes are retained and blocked, not guessed unpaid. The service cannot guarantee reconciliation if the facilitator accepted a broadcast but its response was lost before observation. The journal stores no access tokens or signed payment authorizations. Historical attempts before this version are not backfilled automatically.

@@ -70,6 +70,7 @@ test("real Lucid paid tasks payout and refund only after KeeperHub receipt verif
   const originalFetch = globalThis.fetch;
   const keeperHubWrites: Array<Record<string, unknown>> = [];
   let paymentSettlementCount = 0;
+  let rejectVerification = false;
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init);
@@ -93,6 +94,7 @@ test("real Lucid paid tasks payout and refund only after KeeperHub receipt verif
     }
     if (url.hostname === "facilitator.test" && url.pathname.endsWith("/verify")) {
       assert.equal(request.headers.get("Authorization"), "Bearer dreams_test_token");
+      if (rejectVerification) return Response.json({isValid:false,invalidReason:"temporarily_unavailable"});
       return Response.json({ isValid: true, payer: PAYER });
     }
     if (url.hostname === "facilitator.test" && url.pathname.endsWith("/settle")) {
@@ -248,11 +250,36 @@ test("real Lucid paid tasks payout and refund only after KeeperHub receipt verif
 
       const challenge = await service!.app.fetch(request());
       assert.equal(challenge.status, 402);
+      if (operationId === OPERATION_ID) {
+        // Inject failure after the trusted facilitator response was journaled,
+        // before the coordinator could create its reservation.
+        service!.coordinator.reserve = async () => { throw new Error("injected storage interruption"); };
+      }
       const accepted = await service!.app.fetch(
         request(paymentSignature(challenge, operationId)),
       );
       assert.equal(accepted.status, 200);
-      assert.equal(accepted.headers.get("X-Settlement-Operation"), operationId);
+      if (operationId === OPERATION_ID) {
+        assert.equal(accepted.headers.get("X-Settlement-Capture"), "reconciliation-required");
+        assert.equal(service!.journal.pending()[0]?.payment?.paymentTransactionHash, PAYMENT_TX);
+        assert.equal((await service!.settlementStore.listAll()).length, 0);
+        const taskId = service!.journal.pending()[0].taskId!;
+        for (let poll = 0; poll < 100; poll++) {
+          if ((await service!.taskStore.getDirect(taskId))?.task.status !== "running") break;
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        await service!.close();
+        service = await createSettlementAgentService(config);
+        const replay = await service.app.fetch(request());
+        assert.equal(replay.status, 200);
+        assert.equal(replay.headers.get("X-Settlement-Replayed"), "true");
+        assert.equal(paymentSettlementCount, 1, "restart replay must not charge again");
+        const wrongOwner = request();
+        wrongOwner.headers.set("Task-Access-Token", "different-owner");
+        assert.equal((await service.app.fetch(wrongOwner)).status, 409);
+      } else {
+        assert.equal(accepted.headers.get("X-Settlement-Operation"), operationId);
+      }
       return waitForTerminal(service!.app, operationId);
     };
 
@@ -275,6 +302,18 @@ test("real Lucid paid tasks payout and refund only after KeeperHub receipt verif
       (refund.execution as Record<string, unknown>).transactionHash,
       REFUND_TX,
     );
+    rejectVerification = true;
+    const failedId = "receipt-audit-interrupted-0003";
+    const failedRequest = (signature?: string) => new Request("http://localhost/api/agent/tasks", {
+      method: "POST", headers: {"Content-Type":"application/json", "Task-Access-Token":"stable-failed-request-access-token", "Idempotency-Key":failedId, ...(signature ? {"PAYMENT-SIGNATURE":signature} : {})},
+      body: JSON.stringify({skillId:"audit_receipts", message:{role:"user",content:{text:JSON.stringify({operationId:failedId,workerAddress:WORKER,transactionHashes:[AUDITED_TX]})}}}),
+    });
+    const challenge = await service!.app.fetch(failedRequest());
+    const rejected = await service!.app.fetch(failedRequest(paymentSignature(challenge,failedId)));
+    assert.equal(rejected.status,503);
+    assert.equal((await service!.app.fetch(failedRequest())).status,409);
+    assert.equal(service!.journal.get(failedId)?.payment,undefined);
+    assert.equal(paymentSettlementCount,2, "uncertain replay never reaches settlement");
     assert.deepEqual(keeperHubWrites, [
       {
         chainId: "84532",

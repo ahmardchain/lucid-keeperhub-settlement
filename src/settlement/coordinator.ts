@@ -28,6 +28,7 @@ export interface SettlementCoordinatorOptions {
   maxPollAttempts?: number;
   sleep?: (milliseconds: number) => Promise<void>;
   now?: () => Date;
+  verifier?: typeof verifyLucidTask;
 }
 
 export interface ReserveOperationInput {
@@ -99,7 +100,7 @@ export class SettlementCoordinator {
 
     if (isFinalState(operation.state)) return operation;
 
-    const verification = operation.verification ?? verifyLucidTask(task, this.now());
+    const verification = operation.verification ?? (this.options.verifier ?? verifyLucidTask)(task, this.now());
     const direction = directionForOutcome(verification.outcome);
     const idempotencyKey = settlementIdempotencyKey(
       operation.operationId,

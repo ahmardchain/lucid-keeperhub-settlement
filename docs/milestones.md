@@ -1,53 +1,34 @@
-# Release checklist
+# Submission readiness
 
-## Proven live
+## Recorded live
 
-- One paid audit and one missing-receipt refund on Base Sepolia.
-- Exported incoming payment and outgoing settlement hashes, task IDs and KeeperHub execution IDs.
-- Dashboard access changed to public on September 10. The paid backend remains on the builder's PC.
-- Four existing payment/settlement transactions independently checked with `npm run evidence:verify`.
+- 8 payouts and 5 refunds in `public/evidence/receipts.json`.
+- 13 KeeperHub settlements, 26 incoming/outgoing transactions; IDs and hashes join each operation.
+- Public evidence website; paid Node backend runs separately on the builder's PC.
+- Run `npm run evidence:verify` to verify transfer events independently.
 
-## Implemented; validate with automated checks
+## Implemented
 
-- Reject zero settlement participants and invalid task inputs before payment.
-- Bind operationId to Idempotency-Key before payment.
-- Omit raw facilitator responses from diagnostic logs.
-- Preserve existing evidence and save after each completed operation.
-- Tests for failed, cancelled, expired and invalid-output tasks; duplicate settlement; simulation refusal; durable SQLite reopen.
-- CI configuration runs unit tests, type checking, lint and dashboard build/tests.
-- Installable ESM adapter packaged with declarations and loaded by a separate Lucid consumer.
-- Actual subprocess kill followed by SQLite recovery and a single status poll; KeeperHub is mocked in this automated test.
+- Durable signed-request intent and trusted payment receipt journal.
+- Startup reconciliation for observed payment/task pairs; uncertain outcomes block replay.
+- Captured request replay returns the existing task with matching owner/input.
+- Concise private-data-free payment failure classification; no manual Base64 decoding.
+- Read-only `demo:resume` and `reconciliation:status` commands.
+- Custom deterministic output verifier and separate invoice capability consumer.
+- Automated payment capture interruption/restart, payout/refund, replay, invalid-output, custody and receipt checks.
+- No artificial 10/10 transaction target; `bothPathsVerified` reports evidence coverage only.
 
-## Requires a funded local run
+## Before the final submission
 
-Keep exactly one `npm run agent:dev` terminal open. In another PowerShell terminal:
+1. Run checks on the release revision. Automated fixtures are not live network evidence.
+2. Pull the changes on the PC and restart the single agent process.
+3. Record a real payout/refund demonstration. Existing transaction evidence is usable; do not claim a recorded historical execution is happening live.
+4. Record replay/recovery if demonstrating it as live; otherwise explicitly show the automated test.
+5. Add the actual public video URL, contact email and social contact. Run `npm run submission:check`.
+6. Review the BUIDL and submit from the user's account. Do not claim submission until the form is accepted.
 
-```powershell
-$env:DEMO_RUNS_PER_PATH="10"
-npm run demo:live
-Remove-Item Env:DEMO_RUNS_PER_PATH
-```
+There is no published transaction-count minimum, first-submitter bonus or mainnet requirement. Official rules checked September 10: https://dorahacks.io/hackathon/agent-economy/detail. Deadline September 18, 12:00 CEST (10:00 UTC). Source, working demo video and KeeperHub transaction evidence are required. Live-project integration remains a judge-assessed criterion, not something a local test can certify.
 
-This authorizes 20 new paid testnet tasks, not mainnet transactions. Keep at least 0.20 test USDC in the buyer wallet plus a buffer; ensure KeeperHub can pay network fees. Prior exported operations are retained. Do not run simultaneous demo processes against the same evidence files.
+## Known boundaries
 
-- Verify at least 10 payouts and 10 refunds, each with distinct operation and settlement IDs.
-- Independently inspect each USDC Transfer event for the correct network, token, sender, recipient and amount.
-- Demonstrate duplicate settlement without a second transfer.
-- Demonstrate process termination after a saved execution ID, restart and recovery without a second transfer.
-- Demonstrate timeout and cancellation live; automated tests are not live evidence.
-- If a run fails after payment, reconcile its task and settlement before starting another paid task. Incremental export does not close the payment-to-reservation crash gap.
-
-## Release gates still open
-
-- Host the Node backend with HTTPS, persistent SQLite storage, restricted secrets and one replica. Do not put node:sqlite into the dashboard's Cloudflare Worker.
-- Decide the hosting provider/account and public access settings. No new hosting expenditure is approved by this checklist.
-- Adapter packaging and separate-consumer smoke test are complete. Public npm registry publication is not configured; build/install the tarball using docs/adapter.md.
-- Record a 2–3 minute actual demo using docs/recording-script.md.
-- Check CI on the pushed release commit, scan for secrets, and create a release only after the gates pass.
-- Fill the video/public dashboard links, review current hackathon rules and deadline, and obtain owner approval for the final submission.
-
-Backend deployment instructions and a Docker definition are in docs/backend-deployment.md. No Docker runtime or funded server credentials are available in this workspace, so a live deployment is not claimed. The DoraHacks detail page could not be fetched for a fresh rules/deadline check on September 10; verify it before submission.
-
-## Out of scope for this release
-
-Mainnet, multi-asset settlement, fee splitting, ERC-8004 registration, smart-contract escrow and a separate custom-node bounty. The settlement wallet is operator-controlled custody, not trustless escrow.
+Facilitator nonce/fee contention and outages cannot be repaired by changing the task price. If no trusted response reaches this service, payment outcome requires reconciliation. The journal prevents automatic duplicate attempts; it does not solve every distributed failure. Testnet/operator custody/single replica; no mainnet, trustless escrow, distributed execution or fee splitting. Final video and live rehearsal require the builder's PC and funded credentials.

@@ -6,7 +6,7 @@ Post-fulfillment payout and refund recovery for paid [Lucid Agents](https://gith
 
 This is a working integration against the live Lucid and KeeperHub product surfaces—not a generic agent wrapper. The service exposes a real paid Lucid async capability, captures the verified x402 payer, persists the task and settlement decision in SQLite, and makes KeeperHub the sole post-task USDC execution path.
 
-**Current evidence status:** the implementation and mocked end-to-end suite are complete. `public/evidence/receipts.json` intentionally stays empty until the funded Base Sepolia run produces real transaction hashes.
+**Recorded live evidence:** 8 payouts and 5 refunds on Base Sepolia: 13 KeeperHub settlements and 26 incoming/outgoing transactions. See `public/evidence/receipts.json`. Re-run `npm run evidence:verify` for independent RPC verification. The website presents exported evidence; the paid backend runs separately.
 
 ## Why it exists
 
@@ -53,6 +53,8 @@ The wallet is deliberately called a **settlement wallet**, not escrow: this rele
 | Recovery | Lucid tasks, execution IDs, decisions, and receipts survive process restart in SQLite |
 | Replay expiry | An uncertain write without a saved execution ID blocks after KeeperHub's 24-hour replay window |
 | Evidence | One record joins the payment tx, Lucid task, operation, KeeperHub execution, and settlement tx |
+
+The packaged adapter also supports application-owned deterministic output verifiers; see [the invoice consumer](examples/invoice-consumer/app.mjs) and [adapter guide](docs/adapter.md).
 
 See [the threat model](docs/threat-model.md) for trust assumptions and known limitations.
 
@@ -108,11 +110,9 @@ Add the live-run values from `.env.example`, then keep the agent service running
 npm run demo:live
 ```
 
-For the evidence target of ten payouts and ten refunds:
+There is no hackathon transaction-count minimum. One additional pair is optional. Use `DEMO_PATH=payout` or `DEMO_PATH=refund` to demonstrate a single branch. Never run concurrent demo processes.
 
-```bash
-DEMO_RUNS_PER_PATH=10 npm run demo:live
-```
+After an interruption, use `npm run demo:resume`: it only reads existing settlement status and exports completed receipts. It does not create a payment. Run `npm run reconciliation:status` in the server folder to inspect unresolved journal entries.
 
 The command writes the same verified bundle to:
 
@@ -137,7 +137,7 @@ The suite covers payout, refund, timeout, invalid output, payer binding, wrong `
 - Testnet only: Base Sepolia and one pinned USDC deployment.
 - The settlement wallet is operator-controlled custody, not an onchain escrow contract.
 - The service releases the full task price to the worker; protocol-fee splitting is outside this MVP.
-- A crash after x402 settlement but before local reservation can require reconciliation. The response is marked `X-Settlement-Capture: reconciliation-required` when that failure is observable.
+- The durable payment journal records the intent before forwarding a signed request and the trusted facilitator receipt before handing it back to Lucid. Restart recovers a recorded payment/task pair into the settlement coordinator. If the upstream accepted a transaction but its response never arrived, the outcome remains unknown and replay is blocked for operator reconciliation. This cannot guarantee recovery from every external network failure.
 - Lucid task and settlement records are durable, but the Lucid payments plugin's payment-accounting store is in-memory in this single-process release.
 - SQLite is suitable for the demo and single-node deployment, not a horizontally scaled production service.
 - Definite failed KeeperHub executions stop in `settlement_failed` for operator review; the system never changes recipient or rotates the idempotency key automatically.

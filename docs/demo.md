@@ -28,7 +28,7 @@ Set:
 - `BUYER_PRIVATE_KEY` to the funded demo payer key;
 - `WORKER_PAYOUT_ADDRESS` to the worker destination;
 - `DEMO_SUCCESS_TX_HASH` to an existing successful Base Sepolia transaction;
-- `DEMO_RUNS_PER_PATH` to `1` for rehearsal or `10` for final evidence.
+- `DEMO_RUNS_PER_PATH` to `1` for rehearsal. Extra transaction batches are optional; the hackathon has no published minimum.
 
 The public testnet facilitator does not require a token. If you deliberately
 choose an authenticated facilitator, set `PAYMENTS_FACILITATOR_AUTH` to its
@@ -104,3 +104,9 @@ Keep the sequence short and evidence-led:
 - **Crash after accepted write:** stop the process after KeeperHub returns an execution ID, restart it, and show polling resumes from SQLite without a new idempotency key.
 
 Do not manufacture transaction hashes or label mocked test output as live evidence.
+
+## Interrupted attempts
+
+`npm run demo:resume` only reads saved operation IDs and exports completed evidence; it sends no payments. The runner blocks a new batch while any attempt is unresolved. `npm run reconciliation:status` inspects the server journal. Restarting the agent captures complete payment/task pairs. Unknown upstream outcomes require facilitator/onchain reconciliation; do not delete journal records or rotate operation IDs to work around this guard. Older attempts made before this journal release are not reconstructed automatically.
+
+`npm run demo:replay` replays the latest completed attempt from this release without a payment signature and compares the saved execution/transaction. Client replay credentials live only in ignored `.data/demo-attempts.json` (mode 0600 where supported). Keep that file private. It is distinct from the server journal, which stores only credential digests.

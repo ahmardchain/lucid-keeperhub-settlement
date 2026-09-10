@@ -1,3 +1,4 @@
+import { paymentDiagnostic } from "../src/x402/diagnostics";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -135,10 +136,71 @@ function publicReceipt(operation: SettlementOperation): PublicReceiptOperation {
   };
 }
 
+async function main(): Promise<void> {
 const agentUrl = process.env.AGENT_URL?.trim() || "http://localhost:8788/api/agent";
 const settlementApiUrl =
   process.env.SETTLEMENT_API_URL?.trim() ||
   `${new URL(agentUrl).origin}/api/settlements`;
+const receipts: PublicReceiptOperation[] = [];
+const evidencePath = resolve("artifacts/receipts.json");
+try {
+  const previous = JSON.parse(await readFile(evidencePath, "utf8"));
+  if (previous.mode !== "base_sepolia_live" || previous.network !== "eip155:84532" || !Array.isArray(previous.operations)) {
+    throw new Error("Existing evidence bundle has an unexpected format; preserve and review it first");
+  }
+  receipts.push(...previous.operations);
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+}
+
+const attemptPath = resolve(".data/demo-attempts.json");
+type Attempt = { operationId: string; direction: "payout" | "refund"; complete: boolean; accessToken?: string; input?: {operationId: string; workerAddress: string; transactionHashes: string[]} };
+let attempts: Attempt[] = [];
+try { attempts = JSON.parse(await readFile(attemptPath, "utf8")); }
+catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+async function saveAttempts(): Promise<void> {
+  await mkdir(dirname(attemptPath), {recursive: true});
+  const temporary = `${attemptPath}.${randomUUID()}.tmp`;
+  await writeFile(temporary, JSON.stringify(attempts, null, 2), {mode: 0o600});
+  await rename(temporary, attemptPath);
+}
+if (process.argv.includes("--replay")) {
+  const attempt = [...attempts].reverse().find(a => a.complete && a.accessToken && a.input);
+  if (!attempt) throw new Error("No replay-capable completed attempt exists; record a successful run with this release first");
+  const before = await waitForSettlement(settlementApiUrl, attempt.operationId);
+  // Plain fetch deliberately cannot sign or pay an x402 challenge.
+  const response = await fetch(`${agentUrl}/tasks`, {method: "POST", headers: {
+    "Content-Type": "application/json", "Idempotency-Key": attempt.operationId, "Task-Access-Token": attempt.accessToken!,
+  }, body: JSON.stringify({skillId: ENTRYPOINT, message: {role: "user", content: {text: JSON.stringify(attempt.input)}}}), signal: AbortSignal.timeout(20_000)});
+  if (!response.ok || response.headers.get("X-Settlement-Replayed") !== "true") throw new Error("Server did not acknowledge a captured replay");
+  const after = await waitForSettlement(settlementApiUrl, attempt.operationId);
+  if (before.execution?.keeperhubExecutionId !== after.execution?.keeperhubExecutionId || before.execution?.transactionHash !== after.execution?.transactionHash) throw new Error("Replay evidence changed");
+  console.info(`[replay] ${attempt.operationId}: existing execution ${after.execution?.keeperhubExecutionId}; transaction unchanged. No payment signature was sent.`);
+  return;
+}
+if (process.argv.includes("--resume")) {
+  for (const attempt of attempts.filter(a => !a.complete)) {
+    const response = await fetch(`${settlementApiUrl}/${encodeURIComponent(attempt.operationId)}`, {signal: AbortSignal.timeout(20_000)});
+    if (!response.ok) {
+      console.info(`[resume] ${attempt.operationId}: no captured settlement (${response.status}); run npm run reconciliation:status in the server folder. No payment sent.`);
+      continue;
+    }
+    const operation = await waitForSettlement(settlementApiUrl, attempt.operationId);
+    if (operation.direction !== attempt.direction) throw new Error("Unexpected settlement direction");
+    if (!receipts.some(r => r.operationId === operation.operationId)) receipts.push(publicReceipt(operation));
+    await saveEvidence();
+    attempt.complete = true;
+    await saveAttempts();
+    console.info(`[resume] recovered ${operation.direction} ${operation.operationId}`);
+  }
+  console.info("[resume] Read-only check complete; no payment requests were sent.");
+  return;
+}
+if (attempts.some(a => !a.complete)) {
+  console.error("[demo] An interrupted attempt is preserved. Run npm run demo:resume before starting new paid work.");
+  process.exitCode = 1;
+  return;
+}
 const workerAddress = assertAddress(
   required("WORKER_PAYOUT_ADDRESS"),
   "WORKER_PAYOUT_ADDRESS",
@@ -156,18 +218,6 @@ const paidFetch = createX402Fetch({
   networks: ["base-sepolia"],
 });
 const card = await fetchAgentCard(agentUrl);
-const receipts: PublicReceiptOperation[] = [];
-const evidencePath = resolve("artifacts/receipts.json");
-try {
-  const previous = JSON.parse(await readFile(evidencePath, "utf8"));
-  if (previous.mode !== "base_sepolia_live" || previous.network !== "eip155:84532" || !Array.isArray(previous.operations)) {
-    throw new Error("Existing evidence bundle has an unexpected format; preserve and review it first");
-  }
-  receipts.push(...previous.operations);
-} catch (error) {
-  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-}
-
 async function saveEvidence(): Promise<void> {
   const bundle = {
     schemaVersion: "1.0", mode: "base_sepolia_live", network: "eip155:84532",
@@ -194,6 +244,10 @@ async function runCase(
     randomUUID().slice(0, 8),
   ].join("-");
 
+  const attempt: Attempt = {operationId, direction: expectedDirection, complete: false, accessToken: randomUUID(), input: {operationId, workerAddress, transactionHashes: [transactionHash]}};
+  attempts.push(attempt);
+  await saveAttempts();
+  console.info(`[demo] operation ${operationId}`);
   const access = await sendMessage(
     card,
     ENTRYPOINT,
@@ -203,7 +257,7 @@ async function runCase(
       transactionHashes: [transactionHash],
     },
     paidFetch,
-    { idempotencyKey: operationId },
+    { idempotencyKey: operationId, accessToken: attempt.accessToken },
   );
   const task = await waitForTask(card, access);
   const operation = await waitForSettlement(settlementApiUrl, operationId);
@@ -212,22 +266,33 @@ async function runCase(
       `${operationId} resolved ${operation.direction}; expected ${expectedDirection} (task=${task.status})`,
     );
   }
-  receipts.push(publicReceipt(operation));
+  if (!receipts.some(r => r.operationId === operation.operationId)) receipts.push(publicReceipt(operation));
   await saveEvidence();
+  attempt.complete = true;
+  await saveAttempts();
   console.info(
     `[demo] ${expectedDirection} ${operation.operationId} -> ${operation.execution?.transactionHash}`,
   );
 }
 
+const selectedPath = process.env.DEMO_PATH || "both";
+if (!["both", "payout", "refund"].includes(selectedPath)) throw new Error("DEMO_PATH must be both, payout or refund");
 for (let index = 0; index < runsPerPath; index += 1) {
-  await runCase("payout", successTransactionHash, index + 1);
+  if (selectedPath !== "refund") await runCase("payout", successTransactionHash, index + 1);
   const definitelyMissingHash = `0x${createHash("sha256")
     .update(`missing:${Date.now()}:${index}:${randomUUID()}`)
     .digest("hex")}` as `0x${string}`;
-  await runCase("refund", definitelyMissingHash, index + 1);
+  if (selectedPath !== "payout") await runCase("refund", definitelyMissingHash, index + 1);
 }
 
 await saveEvidence();
 console.info(
   `[demo] wrote ${receipts.length} verified operations to artifacts/receipts.json`,
 );
+
+}
+main().catch(error => {
+  const diagnostic = paymentDiagnostic(error);
+  console.error(`[demo] ${diagnostic.code}: ${diagnostic.message}`);
+  process.exitCode = 1;
+});

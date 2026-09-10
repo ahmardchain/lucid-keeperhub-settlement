@@ -18,7 +18,11 @@
     "agent:dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
     "agent:start": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "demo:live": "node --env-file-if-exists=.env --import tsx scripts/live-demo.ts",
-    "test:unit": "node --import tsx --test tests/unit/*.test.ts"
+    "test:unit": "node --import tsx --test tests/unit/*.test.ts",
+    "demo:resume": "node --env-file-if-exists=.env --import tsx scripts/live-demo.ts --resume",
+    "reconciliation:status": "node --env-file-if-exists=.env --import tsx scripts/reconciliation-status.ts",
+    "submission:check": "node scripts/check-submission.mjs",
+    "demo:replay": "node --env-file-if-exists=.env --import tsx scripts/live-demo.ts --replay"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "5.3.0",

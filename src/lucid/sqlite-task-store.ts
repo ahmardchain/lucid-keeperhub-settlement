@@ -1,3 +1,4 @@
+import { paymentContext } from "./payment-journal";
 import { TaskCapacityError } from "@lucid-agents/a2a";
 import type {
   ListTasksRequest,
@@ -170,6 +171,8 @@ export class SqliteTaskStore implements TaskStore {
           Date.parse(record.task.updatedAt),
         );
     });
+    const capture = paymentContext.getStore();
+    capture?.journal.update(capture.operationId, { taskId: record.task.taskId });
     this.publish(record.task.taskId, event);
   }
 
