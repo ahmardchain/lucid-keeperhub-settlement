@@ -49,22 +49,28 @@ KeeperHub is not an observability add-on. It is the only component that moves US
 ## What to inspect
 
 - Source: https://github.com/ahmardchain/lucid-keeperhub-settlement
-- Dashboard: `[PUBLIC_DASHBOARD_URL]`
+- Dashboard: https://lucid-keeperhub-settlement.ahmardchain.chatgpt.site
 - Demo video: `[VIDEO_URL]`
-- Receipt bundle: `[REPOSITORY_LINK_TO_ARTIFACTS_RECEIPTS_JSON]`
-- BaseScan payout example: `[PAYOUT_TX_URL]`
-- BaseScan refund example: `[REFUND_TX_URL]`
+- Receipt bundle: https://github.com/ahmardchain/lucid-keeperhub-settlement/blob/main/artifacts/receipts.json
+- BaseScan payout example: https://sepolia.basescan.org/tx/0x7b031db5a8961388a3410833547eafc7b0fba7b6bf4f48aaec24b239f9b50a6a
+- BaseScan refund example: https://sepolia.basescan.org/tx/0x689b981426e904f2495fa7b7ea9efb22cd011f3c783ce078d396504ae9d3bb83
 
 Every receipt row joins `operationId`, `lucidTaskId`, `keeperhubExecutionId`, x402 payment transaction, and final settlement transaction.
 
-## Failure cases demonstrated
+## Evidence scope
+
+The exported live bundle currently contains one payout and one refund. All four incoming/outgoing transactions were independently checked against Base Sepolia USDC Transfer events. The larger batch remains pending. The dashboard is publicly accessible; the paid backend still runs separately on the builder's PC.
+
+The installable ESM adapter tarball builds with `npm run adapter:pack`. A separate consumer loads the packaged application with the real Lucid runtime; its external facilitator is mocked. A subprocess kill/restart test proves recovery from a persisted pending execution ID without another broadcast, with KeeperHub mocked. These tests are not claimed as live onchain crash-recovery evidence.
+
+## Live and automated cases
 
 - valid receipt → worker payout;
 - missing receipt → refund to verified x402 payer;
 - duplicate settlement → no second KeeperHub transfer;
 - KeeperHub sender / Lucid `payTo` mismatch → block before broadcast;
 - completed execution without independently verified receipt → fail closed;
-- uncertain execution recovered by saved execution ID or stable key;
+- subprocess interruption recovered by saved execution ID (automated, KeeperHub mocked);
 - unresolved retry after KeeperHub's 24-hour replay window → block for manual reconciliation.
 
 ## Verification

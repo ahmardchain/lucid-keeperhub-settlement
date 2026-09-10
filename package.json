@@ -6,6 +6,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "adapter:pack": "node scripts/package-adapter.mjs",
+    "adapter:test": "npm run adapter:pack && node scripts/test-adapter.mjs",
+    "evidence:verify": "node --env-file-if-exists=.env --import tsx scripts/verify-evidence.ts",
     "install:ci": "bash scripts/install-ci.sh",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build": "bash scripts/build-verified.sh",

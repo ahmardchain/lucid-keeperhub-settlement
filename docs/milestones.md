@@ -4,7 +4,8 @@
 
 - One paid audit and one missing-receipt refund on Base Sepolia.
 - Exported incoming payment and outgoing settlement hashes, task IDs and KeeperHub execution IDs.
-- Dashboard published privately; this is not yet a public judge-accessible backend.
+- Dashboard access changed to public on September 10. The paid backend remains on the builder's PC.
+- Four existing payment/settlement transactions independently checked with `npm run evidence:verify`.
 
 ## Implemented; validate with automated checks
 
@@ -14,6 +15,8 @@
 - Preserve existing evidence and save after each completed operation.
 - Tests for failed, cancelled, expired and invalid-output tasks; duplicate settlement; simulation refusal; durable SQLite reopen.
 - CI configuration runs unit tests, type checking, lint and dashboard build/tests.
+- Installable ESM adapter packaged with declarations and loaded by a separate Lucid consumer.
+- Actual subprocess kill followed by SQLite recovery and a single status poll; KeeperHub is mocked in this automated test.
 
 ## Requires a funded local run
 
@@ -38,10 +41,12 @@ This authorizes 20 new paid testnet tasks, not mainnet transactions. Keep at lea
 
 - Host the Node backend with HTTPS, persistent SQLite storage, restricted secrets and one replica. Do not put node:sqlite into the dashboard's Cloudflare Worker.
 - Decide the hosting provider/account and public access settings. No new hosting expenditure is approved by this checklist.
-- Package and test the reusable adapter in a second Lucid application; source exports alone are not a published SDK.
+- Adapter packaging and separate-consumer smoke test are complete. Public npm registry publication is not configured; build/install the tarball using docs/adapter.md.
 - Record a 2–3 minute actual demo using docs/recording-script.md.
 - Check CI on the pushed release commit, scan for secrets, and create a release only after the gates pass.
 - Fill the video/public dashboard links, review current hackathon rules and deadline, and obtain owner approval for the final submission.
+
+Backend deployment instructions and a Docker definition are in docs/backend-deployment.md. No Docker runtime or funded server credentials are available in this workspace, so a live deployment is not claimed. The DoraHacks detail page could not be fetched for a fresh rules/deadline check on September 10; verify it before submission.
 
 ## Out of scope for this release
 
